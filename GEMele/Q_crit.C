@@ -6,9 +6,10 @@
 #include "TGraphErrors.h"
 #include "TF1.h"
 #include "TRandom3.h"
+#include "Riostream.h"
+#include <iostream>
 
-
-// ./qCrit [Qcrit] [gasFlag] [pitch] [tInt] [filename]
+// ./qCrit [Qcrit] [gasFlag] [pitch] [tInt] [filename] [field]
 int main(int argc,char** argv){
 
   const int ClusterSize = atoi(argv[1]);
@@ -16,7 +17,8 @@ int main(int argc,char** argv){
   const int pitch = atoi(argv[3]);
   const char *tIntegration = argv[4];
   const char *filename = argv[5];
-  
+  const int field = atoi(argv[6]);  
+
   //____________________________________________________________________________________________________________________________________________________________
   // Initialize environment and parameters
       
@@ -30,7 +32,7 @@ int main(int argc,char** argv){
   const int nSteps = 100;
   const Int_t nMulti = 31;
   float multiplication[nMulti] = {275, 325., 375, 425., 475., 525., 575., 600., 625., 675., 725., 775., 825., 875., 925., 975., 1025., 1075., 1125., 1175., 1200., 1225., 1275., 1325., 1375., 1500, 1750, 2000., 3000., 4000., 5000.};
-  const float readout[nSteps] = {10.f, 12.f, 13.f, 14.f, 16.f, 18.f, 20.f, 22.f, 23.f, 24.f, 26.f, 28.f, 30.5f, 32.f, 34.f, 36.f, 38.f, 40.f, 42.f, 44.f, 46.f, 48.f, 49.7f, 52.f, 54.f, 56.f, 58.f, 60.f, 62.f, 64.f, 66.f, 68.f, 71.f, 73.f, 76.f, 79.f, 82.f};
+  const float readout[nSteps] = {10.f, 18.5f, 30.5f, 38.f};
   double HitCounter[nSteps];
   double discharge[nSteps][nMulti];
   double dischargeFluct[nSteps][nMulti];
@@ -115,8 +117,8 @@ int main(int argc,char** argv){
   // Post-processing
  
   const char *directory = "~/Results";
-  TFile *outFile = new TFile(Form("%s/simulation_%s_%s_%i.root", directory, gas, tIntegration, int(ClusterSize)), "RECREATE");
-  
+  TFile *outFile = new TFile(Form("%s/simulation_%s_%s_%i_%i.root", directory, gas, tIntegration, field, int(ClusterSize)), "RECREATE");
+
   double normalization = nev;
 //   double multi, nDischM, nDischMFluct, nDischR;
   
@@ -124,24 +126,23 @@ int main(int argc,char** argv){
   // M-curves, no fluctuations
   TGraphErrors grMultiplication[nSteps];
   
-  int i[nSteps];
-  for(int bin=0; bin<nSteps; ++bin){
-    i[bin]=0;
-  }
+   int i[nSteps];
+   for(int bin=0; bin<nSteps; ++bin){
+     i[bin]=0;
+   }
   
-  for(int bin=0; bin<nSteps; ++bin){
-    if(HitCounter[int(readout[bin])] == 0) continue;
-    grMultiplication[int(readout[bin])].SetTitle(Form("z=%.1f mm ;Multiplication;Discharge probability", float(int(readout[bin]))));
-    for(Int_t mult=0; mult<nMulti; ++mult){
-      const float multi=multiplication[mult];
-      const float nDischM=discharge[int(readout[bin])][mult];
-      grMultiplication[int(readout[bin])].SetPoint(i[bin], multi, nDischM/normalization);
-      grMultiplication[int(readout[bin])].SetPointError(i[bin], 0, sqrt(nDischM/(normalization*normalization) + (nDischM*nDischM)/(normalization*normalization*normalization)));
-      ++i[bin];
-    }
-    grMultiplication[int(readout[bin])].Write(Form("grMultiplication[%i]", int(readout[bin])));
-  }
-  
+   for(int bin=0; bin<nSteps; ++bin){
+     if(HitCounter[int(readout[bin])] == 0) continue; 
+     grMultiplication[int(readout[bin])].SetTitle(Form("z=%.1f mm ;Multiplication;Discharge probability", float(int(readout[bin]))));
+     for(Int_t mult=0; mult<nMulti; ++mult){
+       const float multi=multiplication[mult];
+       const float nDischM=discharge[int(readout[bin])][mult];
+       grMultiplication[int(readout[bin])].SetPoint(i[bin], multi, nDischM/normalization);
+       grMultiplication[int(readout[bin])].SetPointError(i[bin], 0, sqrt(nDischM/(normalization*normalization) + (nDischM*nDischM)/(normalization*normalization*normalization)));
+       ++i[bin];
+     }
+     grMultiplication[int(readout[bin])].Write(Form("grMultiplication[%i]", int(readout[bin])));
+   }
   
   //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // M-curves, fluctuations
@@ -162,7 +163,7 @@ int main(int argc,char** argv){
     grMultiplicationFluct[int(readout[bin])].Write(Form("grMultiplicationFluct[%i]", int(readout[bin])));
   }
   
-  
+
   //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // Range curves, no fluctuations
   TGraphErrors grRange[nMulti];
@@ -184,9 +185,8 @@ int main(int argc,char** argv){
     grRange[mult].Write(Form("grRange[%.0f]", multiplication[mult]));
   }
   
-  
   //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  // Range curves, no fluctuations
+  // Range curves, fluctuations
   
   TGraphErrors grRangeFluct[nMulti];
   for(Int_t mult=0; mult<nMulti; ++mult){
